@@ -1,0 +1,35 @@
+{
+    "expo": {
+        "name": "InertiaShield",
+        "slug": "inertia-shield",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "icon": "./assets/icon.png",
+        "userInterfaceStyle": "dark",
+        "splash": {
+            "image": "./assets/splash.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#121214"
+        },
+        "assetBundlePatterns": [
+            "**/*"
+        ],
+        "android": {
+            "package": "com.yourname.inertiashield",
+            "permissions": [
+                "android.permission.FOREGROUND_SERVICE",
+                "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+                "android.permission.RECEIVE_BOOT_COMPLETED",
+                "android.permission.POST_NOTIFICATIONS"
+            ],
+            "adaptiveIcon": {
+                "foregroundImage": "./assets/adaptive-icon.png",
+                "backgroundColor": "#121214"
+            }
+        },
+        "plugins": [
+            "expo-camera",
+            "./plugins/android-blocker/withAndroidBlocker"
+        ]
+    }
+}
