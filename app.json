@@ -36,8 +36,14 @@
           "image": "./assets/splash.png",
           "resizeMode": "contain",
           "backgroundColor": "#121214"
-            }
-          ]
-        ]
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d41cb0e4-999d-46b1-b3c1-de5a0f654b35"
       }
-    }
+    },
+    "owner": "gkvicky34"
+  }
+}
