@@ -11,6 +11,7 @@ export default function App() {
     const [isLoading, setIsLoading] = useState(true);
     const [hasPermission, setHasPermission] = useState(false);
     const [isLockedDown, setIsLockedDown] = useState(false);
+    const [isUnmountingCamera, setIsUnmountingCamera] = useState(false);
 
     useEffect(() => {
         checkInitialState();
@@ -18,13 +19,11 @@ export default function App() {
 
     const checkInitialState = async () => {
         try {
-            // 1. Check if the user completed the onboarding permission sequence
             const permissionStatus = await AsyncStorage.getItem('@accessibility_granted');
             if (permissionStatus === 'true') {
                 setHasPermission(true);
             }
 
-            // 2. Fallback check to ensure the phone didn't wake up in a forced lock state
             const lockState = await AsyncStorage.getItem('@is_shield_locked');
             if (lockState === 'true') {
                 setIsLockedDown(true);
@@ -42,8 +41,20 @@ export default function App() {
     };
 
     const handleUnlockSuccess = async () => {
+        console.log("[AppRouter] Initiating lock teardown safeguard pipeline...");
+
+        // 1. Instantly write to disk storage so the phone knows it's unlocked if it restarts
         await AsyncStorage.setItem('@is_shield_locked', 'false');
-        setIsLockedDown(false);
+
+        // 2. Turn on a light loading guard. This forces BlockerScreen to stop taking pictures
+        setIsUnmountingCamera(true);
+
+        // 3. Give the hardware camera engine exactly 350ms to turn off the lens and release frame cache memory
+        setTimeout(() => {
+            setIsLockedDown(false);
+            setIsUnmountingCamera(false);
+            console.log("[AppRouter] Transition complete. Settings screen mounted cleanly.");
+        }, 350);
     };
 
     const triggerManualLockTest = async () => {
@@ -59,7 +70,6 @@ export default function App() {
         );
     }
 
-    // Master State Machine Routing
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor="#121214" />
@@ -67,7 +77,14 @@ export default function App() {
             {!hasPermission ? (
                 <OnboardingPermissionScreen onPermissionGranted={handlePermissionSuccess} />
             ) : isLockedDown ? (
-                <BlockerScreen onUnlockSuccess={handleUnlockSuccess} />
+                isUnmountingCamera ? (
+                    // Temporary transition state that stops camera hooks while the screen changes
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color="#38BDF8" />
+                    </View>
+                ) : (
+                    <BlockerScreen onUnlockSuccess={handleUnlockSuccess} />
+                )
             ) : (
                 <SettingsScreen onTriggerTestLock={triggerManualLockTest} />
             )}
