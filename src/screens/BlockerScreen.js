@@ -1,28 +1,59 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, forwardRef } from 'react';
 import { StyleSheet, Text, View, Alert, TouchableOpacity } from 'react-native';
-import { Camera } from 'expo-camera';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { cameraWithTensors } from '@tensorflow/tfjs-react-native';
 import { verifyObjectInFrame } from '../services/tensorModel';
 
-const TensorCamera = cameraWithTensors(Camera);
+/**
+ *  * 1. Functional Bridge Component using forwardRef
+  */
+const ExpoCameraFunctionalBridge = forwardRef((props, ref) => {
+  const { type, ...restProps } = props;
+  const facingMode = type === 'front' ? 'front' : 'back';
 
+  return (
+    <CameraView
+      {...restProps}
+      ref={ref}
+      facing={facingMode}
+    />
+  );
+});
+
+ExpoCameraFunctionalBridge.Constants = {
+  Type: {
+    back: 'back',
+    front: 'front'
+  }
+};
+
+/**
+ * 2. Wrap our functional bridge with the tensor engine HOC
+  */
+const TensorCamera = cameraWithTensors(ExpoCameraFunctionalBridge);
+
+ 
 export default function BlockerScreen({ onUnlockSuccess }) {
-  const [hasPermission, setHasPermission] = useState(null);
+  const [permission, requestPermission] = useCameraPermissions();
   const isProcessing = useRef(false);
 
   useEffect(() => {
-    (async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === 'granted');
-    })();
+    requestPermission();
   }, []);
 
   const handleCameraStream = (images) => {
     const loop = async () => {
-      if (isProcessing.current) return;
-
       const nextImageTensor = images.next().value;
-      if (!nextImageTensor) return;
+      if (!nextImageTensor) {
+        setTimeout(loop, 1000);
+        return;
+      }
+
+
+      if (isProcessing.current) {
+        nextImageTensor.dispose();
+        return;
+      }
 
       isProcessing.current = true;
 
@@ -44,8 +75,8 @@ export default function BlockerScreen({ onUnlockSuccess }) {
     loop();
   };
 
-  if (hasPermission === null) return <View style={styles.container}><Text style={styles.loadingText}>Loading Camera View...</Text></View>;
-  if (hasPermission === false) return <View style={styles.container}><Text style={styles.errorText}>Camera access required to unlock.</Text></View>;
+  if (!permission) return <View style={styles.container}><Text style={styles.loadingText}>Loading Camera View...</Text></View>;
+  if (!permission.granted) return <View style={styles.container}><Text style={styles.errorText}>Camera access required to unlock.</Text></View>;
 
   return (
     <View style={styles.container}>
@@ -55,7 +86,7 @@ export default function BlockerScreen({ onUnlockSuccess }) {
       </View>
       <TensorCamera
         style={styles.camera}
-        type={Camera.Constants.Type.back}
+        type={ExpoCameraFunctionalBridge.Constants.Type.back}
         onReady={handleCameraStream}
         autorender={true}
       />
